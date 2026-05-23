@@ -1,0 +1,114 @@
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+EnumMap	KEYWORD1
+EnumMapEntry	KEYWORD1
+CanSignal	KEYWORD1
+CanSignalConfig	KEYWORD1
+CanByteSignal	KEYWORD1
+CanByteSignalConfig	KEYWORD1
+CanBitSignal	KEYWORD1
+CanBitSignalConfig	KEYWORD1
+CanByteBitSignal	KEYWORD1
+CanByteBitSignalConfig	KEYWORD1
+CanMessage	KEYWORD1
+CanMessageConfig	KEYWORD1
+CanConstantConfig	KEYWORD1
+CanMessageDatabase	KEYWORD1
+CanChannel	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+configure	KEYWORD2
+isValid	KEYWORD2
+errorCode	KEYWORD2
+lastError	KEYWORD2
+hasError	KEYWORD2
+clearError	KEYWORD2
+errorText	KEYWORD2
+setSignalValue	KEYWORD2
+signalValue	KEYWORD2
+rawSignalValue	KEYWORD2
+hasReceivedValue	KEYWORD2
+lastUpdateMs	KEYWORD2
+enumLabel	KEYWORD2
+setWebappOverrideValue	KEYWORD2
+releaseWebappOverride	KEYWORD2
+overrideActive	KEYWORD2
+effectiveSignalValue	KEYWORD2
+owner	KEYWORD2
+resetToDefault	KEYWORD2
+rawIntegerRange	KEYWORD2
+physicalToRawInteger	KEYWORD2
+labelFor	KEYWORD2
+valueForLabel	KEYWORD2
+containsValue	KEYWORD2
+entryAt	KEYWORD2
+valueAt	KEYWORD2
+labelAt	KEYWORD2
+count	KEYWORD2
+dlc	KEYWORD2
+lengthBytes	KEYWORD2
+defaultFill	KEYWORD2
+comment	KEYWORD2
+frameFormat	KEYWORD2
+bitrateSwitch	KEYWORD2
+classicFrameAllowed	KEYWORD2
+fdFrameAllowed	KEYWORD2
+validTransportLength	KEYWORD2
+requiresCanFd	KEYWORD2
+lastSentMs	KEYWORD2
+hasBeenSent	KEYWORD2
+markSent	KEYWORD2
+addSignal	KEYWORD2
+addConstant	KEYWORD2
+signalCount	KEYWORD2
+signalAt	KEYWORD2
+constantCount	KEYWORD2
+constantAt	KEYWORD2
+payloadBitLength	KEYWORD2
+pack	KEYWORD2
+matches	KEYWORD2
+decode	KEYWORD2
+decodePayload	KEYWORD2
+addMessage	KEYWORD2
+lastDecodedMessage	KEYWORD2
+sendMessage	KEYWORD2
+sendIfDue	KEYWORD2
+setBusType	KEYWORD2
+busType	KEYWORD2
+lastDriverStatus	KEYWORD2
+name	KEYWORD2
+id	KEYWORD2
+idType	KEYWORD2
+dataType	KEYWORD2
+startBit	KEYWORD2
+bitLength	KEYWORD2
+endianness	KEYWORD2
+enumMap	KEYWORD2
+isEnum	KEYWORD2
+overrideCapable	KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+
+STANDARD	LITERAL1
+EXTENDED	LITERAL1
+UNSIGNED	LITERAL1
+SIGNED	LITERAL1
+FLOAT	LITERAL1
+DOUBLE	LITERAL1
+NORMAL_SIGNAL	LITERAL1
+MULTIPLEXOR	LITERAL1
+MULTIPLEXED_SIGNAL	LITERAL1
+SIGNAL_OWNER_SKETCH	LITERAL1
+SIGNAL_OWNER_WEBAPP_OVERRIDE	LITERAL1
+FRAME_AUTO	LITERAL1
+FRAME_CLASSIC	LITERAL1
+FRAME_FD	LITERAL1
+CAN_CLASSIC	LITERAL1
+CAN_FD	LITERAL1
