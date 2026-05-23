@@ -710,7 +710,7 @@ void setup() {
   pinMode(PIN_CAN0_STANDBY, OUTPUT);
   digitalWrite(PIN_CAN0_STANDBY, LOW);
 
-  Serial.println("CANMessageSignal 0.1.0 test");
+  Serial.println("CANMessageSignal 1.0.0 test");
 
   ACANFD_SAME_Settings settings(ACANFD_SAME_Settings::CLOCK_48MHz, 500 * 1000, DataBitRateFactor::x1);
   settings.mModuleMode = ACANFD_SAME_Settings::INTERNAL_LOOP_BACK;
@@ -923,7 +923,7 @@ void setup() {
 
   runDecodeTests();
 
-  Serial.println("CANMessageSignal 1.1.1 test complete");
+  Serial.println("CANMessageSignal 1.0.0 test complete");
 }
 
 void loop() {

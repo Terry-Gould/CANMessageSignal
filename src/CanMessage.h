@@ -118,6 +118,10 @@ public:
   bool hasBeenSent() const { return m_hasBeenSent; }
   void markSent(uint32_t nowMs) { m_lastSentMs = nowMs; m_hasBeenSent = true; }
 
+  // Adds a normal signal to the message and validates field overlap.
+  // Multiplexed signal roles are reserved metadata in this release; overlap
+  // validation is not multiplex-aware, so overlapping multiplexed layouts are
+  // intentionally rejected in this release.
   bool addSignal(CanSignal& signal);
 
   bool addConstant(uint16_t startBit, uint16_t bitLength, uint64_t value);

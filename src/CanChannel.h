@@ -42,6 +42,9 @@ public:
 
   // Must be called repeatedly, for example from loop().
   // Sends only when the specified period has elapsed.
+  // Returns true only when a send was attempted and accepted by the driver.
+  // Returns false when the message is not due yet, or when a due send failed.
+  // Check hasError()/lastError() to distinguish a real failure from "not due".
   bool sendIfDue(CanMessage& message, uint32_t periodMs);
 
   ErrorCode errorCode() const { return m_error; }

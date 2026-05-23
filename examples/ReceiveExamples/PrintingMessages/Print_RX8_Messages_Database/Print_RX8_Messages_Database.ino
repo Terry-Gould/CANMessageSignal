@@ -284,7 +284,7 @@ void setup() {
     delay(10);
   }
 
-  Serial.println("CANMessageSignal 1.1.1 RX database live-view example");
+  Serial.println("CANMessageSignal RX database live-view example");
   #if USE_ANSI_TERMINAL
   Serial.println("ANSI terminal live-view enabled.");
 #else

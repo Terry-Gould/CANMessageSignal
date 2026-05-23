@@ -210,7 +210,7 @@ void setup() {
     delay(10);
   }
 
-  Serial.println("CANMessageSignal 1.1.1 RX database signal live-view example");
+  Serial.println("CANMessageSignal RX database signal live-view example");
   Serial.println("Use an ANSI-capable serial terminal. Arduino Serial Monitor will not clear the console correctly.");
 
   printRegistrationResult(setDeviceSignals());

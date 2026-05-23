@@ -11,6 +11,10 @@ namespace CANMessageSignal {
 // The user remains responsible for CAN driver receive setup, filters, FIFOs,
 // callbacks, interrupts, etc. The database only receives a frame object and
 // tries to decode it against the registered message definitions.
+//
+// The database is intentionally not channel-aware. It matches by CAN ID and
+// standard/extended ID type. For dual-channel applications with duplicate IDs
+// on different buses, use one database per channel.
 template <uint8_t MAX_MESSAGES>
 class CanMessageDatabase {
 public:

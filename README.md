@@ -1,4 +1,4 @@
-# CANMessageSignal 0.1.0
+# CANMessageSignal 1.0.0
 
 This library uses the concept of messages and signals to send data over the CAN bus. It largely follows the Vector DBC format, but adds a few convenience classes to make common byte and bit based signals easier to define.
 
@@ -6,9 +6,14 @@ The idea is that you define one or more signals per message. You start by buildi
 
 You can attach one signal to one or more messages. This could be useful when data is duplicated across one or more IDs, or when you want to transmit the same signal on different channels.
 
+This library depends on ACANFD_SAME <https://github.com/Terry-Gould/ACANFD_SAME>
+
+It is recommended that you get to know ACANFD_SAME before using this library, read the examples and documentation so you are aware how to set up and use the CAN controllers. 
+
 To use the library in a sketch:
 
 ```cpp
+#include "ACANFD_SAME.h"
 #include "CANMessageSignal.h"
 
 using namespace CANMessageSignal;
@@ -146,6 +151,27 @@ bits walk downward with wrap
 ```
 
 This matters even for 8-bit and sub-byte signals. For example, an 8-bit big-endian signal at `startBit = 31` occupies byte 3, bits 31..24. An 8-bit little-endian signal at `startBit = 24` also occupies byte 3, bits 24..31.
+
+### Multiplexing status
+
+The signal config includes these DBC-style fields for future compatibility:
+
+```cpp
+.signalRole = NORMAL_SIGNAL,
+.multiplexor = nullptr,
+.multiplexValue = 0,
+```
+
+In version 1.0.0 these fields are **metadata only**. Multiplexed packing, multiplexed decoding, and multiplex-aware overlap validation are not implemented yet.
+
+This means:
+
+- `NORMAL_SIGNAL` is the only fully supported runtime signal role.
+- `MULTIPLEXOR` and `MULTIPLEXED_SIGNAL` are accepted by the API for future-proofing, but they are not used to select which signals are packed or decoded.
+- Multiplexed signals are currently validated like normal signals, so overlapping multiplexed layouts will still be rejected with `FIELD_OVERLAP`.
+- Do not rely on multiplexing for runtime behaviour in this release.
+
+If you need multiplexed messages today, define separate `CanMessage` objects or handle the multiplexing logic in your sketch code.
 
 ## Byte-level signal definition
 
@@ -460,17 +486,27 @@ can0Channel.sendIfDue(engineStatus, 20);
 
 Must be called repeatedly, for example in `loop()`. Sends only when the specified period has elapsed. It is not completely set and forget; you need to ensure that it is called faster than the period.
 
-This does the equivalent of:
+`sendIfDue()` returns `true` only when a send was actually attempted and accepted by the ACANFD driver.
+
+It returns `false` in two different situations:
+
+1. the message was not due yet; this is normal and clears the channel error state to `OK`
+2. the message was due, but packing or driver transmit failed; in this case `can0Channel.hasError()` will be `true`
+
+Use this pattern if you need to distinguish "not due" from a real failure:
 
 ```cpp
-bool sendIfDue(CanMessage& msg, uint32_t periodMs) {
-  if (millis() - msg.lastSentMs >= periodMs) {
-    msg.lastSentMs = millis();
-    return sendMessage(msg);
-  }
-  return false;
+const bool sent = can0Channel.sendIfDue(engineStatus, 20);
+
+if (!sent && can0Channel.hasError()) {
+  Serial.print("sendIfDue failed: ");
+  Serial.println(can0Channel.errorText());
+} else if (sent) {
+  Serial.println("engineStatus accepted for transmit");
 }
 ```
+
+Internally, the due check is based on the message's `lastSentMs()` timestamp, which is updated after `sendMessage()` succeeds.
 
 ## Bus type guard
 
@@ -593,7 +629,7 @@ This keeps the main sketch readable when there are hundreds of signals and dozen
 
 ## Receive decoding
 
-Version 1.1.1 adds receive-side decoding. The CAN driver setup is still left to the user. This means filters, FIFOs, callbacks, interrupts, and buffering stay under your control.
+Receive-side decoding is supported. The CAN driver setup is still left to the user. This means filters, FIFOs, callbacks, interrupts, and buffering stay under your control.
 
 The simple pattern is:
 
@@ -624,6 +660,8 @@ void setup() {
 }
 ```
 
+`CanMessageDatabase` is not channel-aware. It matches messages by CAN ID and standard/extended ID type. In dual-channel applications where the same ID may exist on CAN1 and CAN2, use one database per channel, for example `can1RxDb` and `can2RxDb`.
+
 When a received frame is decoded, the attached signals are updated:
 
 ```cpp
@@ -635,6 +673,10 @@ if (rxDb.decode(rx)) {
   Serial.println(rpm.rawSignalValue());
 }
 ```
+
+When a frame is decoded, each attached `CanSignal` stores the decoded physical value in that signal object. In other words, a signal object has one runtime value.
+
+For this reason, if the same real-world signal is both transmitted and received, define separate TX and RX `CanSignal` objects unless you intentionally want them to share state. For example, use names such as `rpmTx` and `rpmRx`.
 
 Useful receive helpers:
 

@@ -22,6 +22,10 @@ enum SignalDataType : uint8_t {
 // LITTLE_ENDIAN: startBit is the LSb and bits walk upward.
 typedef uint16_t SignalEndianness;
 
+// DBC-style multiplexing metadata is included for future API compatibility.
+// This release does not implement multiplexed packing, decoding, or
+// multiplex-aware overlap validation. Use NORMAL_SIGNAL for supported
+// runtime behaviour in this release.
 enum SignalRole : uint8_t {
   NORMAL_SIGNAL = 0,
   MULTIPLEXOR,
@@ -51,6 +55,8 @@ struct CanSignalConfig {
   double min;
   double max;
   double defaultValue;
+  // Multiplexing fields are reserved metadata in this release.
+  // They are stored and validated, but do not change pack/decode behaviour.
   SignalRole signalRole;
   const char* multiplexor;
   int64_t multiplexValue;
@@ -196,6 +202,8 @@ struct CanBitSignalConfig {
   uint16_t bit;
   const char* comment;
   bool defaultValue;
+  // Multiplexing fields are reserved metadata in this release.
+  // They are stored and validated, but do not change pack/decode behaviour.
   SignalRole signalRole;
   const char* multiplexor;
   int64_t multiplexValue;
@@ -222,6 +230,8 @@ struct CanByteBitSignalConfig {
   uint8_t bit;
   const char* comment;
   bool defaultValue;
+  // Multiplexing fields are reserved metadata in this release.
+  // They are stored and validated, but do not change pack/decode behaviour.
   SignalRole signalRole;
   const char* multiplexor;
   int64_t multiplexValue;
