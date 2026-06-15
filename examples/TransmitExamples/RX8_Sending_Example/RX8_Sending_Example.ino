@@ -84,157 +84,104 @@ static double rampFraction(uint32_t nowMs) {
 }
 
 // -----------------------------------------------------------------------------
-// Raw/gauge ECT independent temperature cycle
-// -12 -> 150 over 1 minute
-// dwell at 150 for 1 minute
-// gaugeECT only = raw 0xFF for 20 seconds
-// 150 -> -12 over 1 minute
-// dwell at -12 for 1 minute
-// gaugeECT only = raw 0xFF for 20 seconds
-// repeat forever
+// Raw/gauge ECT independent gauge sweep
+// The RX-8 ECT gauge is non-linear: the needle only moves from 46-70 C and
+// 111-140 C. The sweep skips the centre dead-band so the needle does not dwell
+// near the midpoint.
 // -----------------------------------------------------------------------------
-static const double ECT_MIN_C = -12.0;
-static const double ECT_MAX_C = 150.0;
-static const double GAUGE_ECT_RAW_FF_PHYSICAL = 215.0;  // raw = physical - offset = 215 - (-40) = 255 = 0xFF
+static const double ECT_GAUGE_MIN_C = 46.0;
+static const double ECT_GAUGE_LOWER_MOVE_END_C = 70.0;
+static const double ECT_GAUGE_UPPER_MOVE_START_C = 111.0;
+static const double ECT_GAUGE_MAX_C = 140.0;
 
-static const uint32_t ECT_RAMP_MS = 60000UL;
-static const uint32_t ECT_DWELL_MS = 60000UL;
-static const uint32_t ECT_FAULT_MS = 20000UL;
+static const uint32_t ECT_SWEEP_MS = 90000UL;
+static const uint32_t ECT_DWELL_BOTTOM_MS = 5000UL;
+static const uint32_t ECT_DWELL_TOP_MS = 5000UL;
 
-enum EctPhase : uint8_t {
-  ECT_RAMP_UP,
-  ECT_DWELL_MAX,
-  ECT_GAUGE_FF_MAX,
-  ECT_RAMP_DOWN,
-  ECT_DWELL_MIN,
-  ECT_GAUGE_FF_MIN
+enum EctSweepPhase : uint8_t {
+  ECT_DWELL_BOTTOM,
+  ECT_SWEEP_UP,
+  ECT_DWELL_TOP,
+  ECT_SWEEP_DOWN
 };
 
-static EctPhase gEctPhase = ECT_RAMP_UP;
-static uint32_t gEctPhaseStartMs = 0;
+static EctSweepPhase gEctSweepPhase = ECT_DWELL_BOTTOM;
+static uint32_t gEctSweepPhaseStartMs = 0;
 
 static void printEctPhaseEvent(const char* text) {
   Serial.print("ECT: ");
   Serial.println(text);
 }
 
-static void advanceEctPhase(uint32_t nowMs) {
-  switch (gEctPhase) {
-    case ECT_RAMP_UP:
-      gEctPhase = ECT_DWELL_MAX;
-      gEctPhaseStartMs = nowMs;
-      printEctPhaseEvent("ramp up ended, max dwell started");
-      break;
+static double clamp01(double value) {
+  if (value < 0.0) return 0.0;
+  if (value > 1.0) return 1.0;
+  return value;
+}
 
-    case ECT_DWELL_MAX:
-      gEctPhase = ECT_GAUGE_FF_MAX;
-      gEctPhaseStartMs = nowMs;
-      printEctPhaseEvent("max dwell ended, gaugeECT raw 0xFF started");
-      break;
+static double ectGaugeSweepTempC(double needleFraction) {
+  const double f = clamp01(needleFraction);
 
-    case ECT_GAUGE_FF_MAX:
-      gEctPhase = ECT_RAMP_DOWN;
-      gEctPhaseStartMs = nowMs;
-      printEctPhaseEvent("gaugeECT raw 0xFF ended, ramp down started");
-      break;
-
-    case ECT_RAMP_DOWN:
-      gEctPhase = ECT_DWELL_MIN;
-      gEctPhaseStartMs = nowMs;
-      printEctPhaseEvent("ramp down ended, min dwell started");
-      break;
-
-    case ECT_DWELL_MIN:
-      gEctPhase = ECT_GAUGE_FF_MIN;
-      gEctPhaseStartMs = nowMs;
-      printEctPhaseEvent("min dwell ended, gaugeECT raw 0xFF started");
-      break;
-
-    case ECT_GAUGE_FF_MIN:
-    default:
-      gEctPhase = ECT_RAMP_UP;
-      gEctPhaseStartMs = nowMs;
-      printEctPhaseEvent("gaugeECT raw 0xFF ended, ramp up started");
-      break;
+  if (f < 0.5) {
+    const double lowerF = f / 0.5;
+    return ECT_GAUGE_MIN_C +
+           lowerF * (ECT_GAUGE_LOWER_MOVE_END_C - ECT_GAUGE_MIN_C);
   }
+
+  const double upperF = (f - 0.5) / 0.5;
+  return ECT_GAUGE_UPPER_MOVE_START_C +
+         upperF * (ECT_GAUGE_MAX_C - ECT_GAUGE_UPPER_MOVE_START_C);
+}
+
+static void setEctSignals(double tempC) {
+  rawECT.setSignalValue(tempC);
+  gaugeECT.setSignalValue(tempC);
+}
+
+static void advanceEctSweepPhase(uint8_t nextPhase, uint32_t nowMs, const char* text) {
+  gEctSweepPhase = EctSweepPhase(nextPhase);
+  gEctSweepPhaseStartMs = nowMs;
+  printEctPhaseEvent(text);
 }
 
 static void updateEctCycle(uint32_t nowMs) {
-  const uint32_t elapsed = nowMs - gEctPhaseStartMs;
-  double rawTempC = ECT_MIN_C;
-  double gaugeTempC = ECT_MIN_C;
+  const uint32_t elapsed = nowMs - gEctSweepPhaseStartMs;
 
-  switch (gEctPhase) {
-    case ECT_RAMP_UP:
-      {
-        if (elapsed >= ECT_RAMP_MS) {
-          advanceEctPhase(nowMs);
-          rawTempC = ECT_MAX_C;
-          gaugeTempC = ECT_MAX_C;
-        } else {
-          const double f = double(elapsed) / double(ECT_RAMP_MS);
-          rawTempC = ECT_MIN_C + f * (ECT_MAX_C - ECT_MIN_C);
-          gaugeTempC = rawTempC;
-        }
-        break;
-      }
-
-    case ECT_DWELL_MAX:
-      rawTempC = ECT_MAX_C;
-      gaugeTempC = ECT_MAX_C;
-      if (elapsed >= ECT_DWELL_MS) {
-        advanceEctPhase(nowMs);
-        gaugeTempC = GAUGE_ECT_RAW_FF_PHYSICAL;
+  switch (gEctSweepPhase) {
+    case ECT_DWELL_BOTTOM:
+      setEctSignals(ECT_GAUGE_MIN_C);
+      if (elapsed >= ECT_DWELL_BOTTOM_MS) {
+        advanceEctSweepPhase(ECT_SWEEP_UP, nowMs, "bottom dwell ended, sweep up started");
       }
       break;
 
-    case ECT_GAUGE_FF_MAX:
-      rawTempC = ECT_MAX_C;
-      gaugeTempC = GAUGE_ECT_RAW_FF_PHYSICAL;
-      if (elapsed >= ECT_FAULT_MS) {
-        advanceEctPhase(nowMs);
-        rawTempC = ECT_MAX_C;
-        gaugeTempC = ECT_MAX_C;
+    case ECT_SWEEP_UP:
+      if (elapsed >= ECT_SWEEP_MS) {
+        setEctSignals(ECT_GAUGE_MAX_C);
+        advanceEctSweepPhase(ECT_DWELL_TOP, nowMs, "sweep up ended, top dwell started");
+      } else {
+        setEctSignals(ectGaugeSweepTempC(double(elapsed) / double(ECT_SWEEP_MS)));
       }
       break;
 
-    case ECT_RAMP_DOWN:
-      {
-        if (elapsed >= ECT_RAMP_MS) {
-          advanceEctPhase(nowMs);
-          rawTempC = ECT_MIN_C;
-          gaugeTempC = ECT_MIN_C;
-        } else {
-          const double f = double(elapsed) / double(ECT_RAMP_MS);
-          rawTempC = ECT_MAX_C - f * (ECT_MAX_C - ECT_MIN_C);
-          gaugeTempC = rawTempC;
-        }
-        break;
-      }
-
-    case ECT_DWELL_MIN:
-      rawTempC = ECT_MIN_C;
-      gaugeTempC = ECT_MIN_C;
-      if (elapsed >= ECT_DWELL_MS) {
-        advanceEctPhase(nowMs);
-        gaugeTempC = GAUGE_ECT_RAW_FF_PHYSICAL;
+    case ECT_DWELL_TOP:
+      setEctSignals(ECT_GAUGE_MAX_C);
+      if (elapsed >= ECT_DWELL_TOP_MS) {
+        advanceEctSweepPhase(ECT_SWEEP_DOWN, nowMs, "top dwell ended, sweep down started");
       }
       break;
 
-    case ECT_GAUGE_FF_MIN:
+    case ECT_SWEEP_DOWN:
     default:
-      rawTempC = ECT_MIN_C;
-      gaugeTempC = GAUGE_ECT_RAW_FF_PHYSICAL;
-      if (elapsed >= ECT_FAULT_MS) {
-        advanceEctPhase(nowMs);
-        rawTempC = ECT_MIN_C;
-        gaugeTempC = ECT_MIN_C;
+      if (elapsed >= ECT_SWEEP_MS) {
+        setEctSignals(ECT_GAUGE_MIN_C);
+        advanceEctSweepPhase(ECT_DWELL_BOTTOM, nowMs, "sweep down ended, bottom dwell started");
+      } else {
+        const double f = 1.0 - (double(elapsed) / double(ECT_SWEEP_MS));
+        setEctSignals(ectGaugeSweepTempC(f));
       }
       break;
   }
-
-  rawECT.setSignalValue(rawTempC);
-  gaugeECT.setSignalValue(gaugeTempC);
 }
 
 static SequenceState gSeqState = SEQ_OIL_LOW;
@@ -518,10 +465,10 @@ void setup() {
     Serial.println("Signal registration ok");
   }
 
-  gEctPhaseStartMs = millis();
+  gEctSweepPhaseStartMs = millis();
   gSeqStateStartMs = millis();
 
-  printEctPhaseEvent("ramp up started");
+  printEctPhaseEvent("bottom dwell started");
   applySequenceState(gSeqState);
 }
 
