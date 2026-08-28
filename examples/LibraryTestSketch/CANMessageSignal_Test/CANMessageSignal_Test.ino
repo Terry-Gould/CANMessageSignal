@@ -7,6 +7,11 @@
 
 #include "CANMessageSignal.h"
 
+// Required only when TinyUSB is selected, so the external Adafruit TinyUSB Library provides USB Serial.
+#ifdef USE_TINYUSB
+#include <Adafruit_TinyUSB.h>
+#endif
+
 using namespace CANMessageSignal;
 
 CanSignal rpm({

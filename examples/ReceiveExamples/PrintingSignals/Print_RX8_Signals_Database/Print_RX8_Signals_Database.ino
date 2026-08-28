@@ -6,6 +6,11 @@
 #include "CANMessageSignal.h"
 #include "DeviceSignalsByteBit.h"
 
+// Required only when TinyUSB is selected, so the external Adafruit TinyUSB Library provides USB Serial.
+#ifdef USE_TINYUSB
+#include <Adafruit_TinyUSB.h>
+#endif
+
 using namespace CANMessageSignal;
 
 static const uint32_t CAN_BAUD = 500UL * 1000UL;
